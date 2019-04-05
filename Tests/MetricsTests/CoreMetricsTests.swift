@@ -46,7 +46,7 @@ class MetricsTests: XCTestCase {
         let name = "counter-\(NSUUID().uuidString)"
         let value = Int.random(in: Int.min ... Int.max)
         Counter(label: name).increment(value)
-        let counter = metrics.counters[name] as! TestCounter
+        let counter = metrics.counters[namespacedName] as! TestCounter
         XCTAssertEqual(counter.values.count, 1, "expected number of entries to match")
         XCTAssertEqual(counter.values[0].1, Int64(value), "expected value to match")
         counter.reset()
@@ -113,7 +113,7 @@ class MetricsTests: XCTestCase {
         let name = "recorder-\(NSUUID().uuidString)"
         let value = Double.random(in: Double(Int.min) ... Double(Int.max))
         Recorder(label: name).record(value)
-        let recorder = metrics.recorders[name] as! TestRecorder
+        let recorder = metrics[recorder: namespacedName] as! TestRecorder
         XCTAssertEqual(recorder.values.count, 1, "expected number of entries to match")
         XCTAssertEqual(recorder.values[0].1, value, "expected value to match")
     }
@@ -146,7 +146,7 @@ class MetricsTests: XCTestCase {
         let name = "timer-\(NSUUID().uuidString)"
         let value = Int64.random(in: Int64.min ... Int64.max)
         Timer(label: name).recordNanoseconds(value)
-        let timer = metrics.timers[name] as! TestTimer
+        let timer = metrics[timer: namespacedName] as! TestTimer
         XCTAssertEqual(timer.values.count, 1, "expected number of entries to match")
         XCTAssertEqual(timer.values[0].1, value, "expected value to match")
     }
@@ -202,7 +202,7 @@ class MetricsTests: XCTestCase {
         let name = "gauge-\(NSUUID().uuidString)"
         let value = Double.random(in: -1000 ... 1000)
         Gauge(label: name).record(value)
-        let recorder = metrics.recorders[name] as! TestRecorder
+        let recorder = metrics[recorder: namespacedName] as! TestRecorder
         XCTAssertEqual(recorder.values.count, 1, "expected number of entries to match")
         XCTAssertEqual(recorder.values[0].1, value, "expected value to match")
     }
@@ -252,15 +252,12 @@ class MetricsTests: XCTestCase {
         let gauge = Gauge(label: name)
         gauge.record(value)
 
-        print("g = \((gauge.handler as! TestRecorder).values)")
-
         let recorder = Gauge(label: name).handler as! TestRecorder
-        print("g = \(recorder.values)")
         XCTAssertEqual(recorder.values.count, 1, "expected number of entries to match")
         XCTAssertEqual(recorder.values.first!.1, value, "expected value to match")
 
         let identity = ObjectIdentifier(recorder)
-        MetricsSystem.release(metric: recorder)
+        MetricsSystem.release(label: recorder.label)
 
         let gaugeAgain  = Gauge(label: name)
         gaugeAgain.record(-value)

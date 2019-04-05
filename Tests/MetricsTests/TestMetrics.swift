@@ -18,23 +18,35 @@ import Foundation
 
 internal class TestMetrics: MetricsFactory {
     private let lock = NSLock() // TODO: consider lock per cache?
-    var counters = [String: CounterHandler]()
-    var recorders = [String: RecorderHandler]()
-    var timers = [String: TimerHandler]()
+    var _counters = [String: CounterHandler]()
+    subscript(counter label: String) -> CounterHandler? {
+        return self._counters["counters.\(label)"]
+    }
+
+    var _recorders = [String: RecorderHandler]()
+    subscript(recorder label: String) -> RecorderHandler? {
+        return self._recorders["recorders.\(label)"]
+    }
+    
+    var _timers = [String: TimerHandler]()
+    subscript(timer label: String) -> TimerHandler? {
+        return self._timers["timers.\(label)"]
+    }
+    
 
     public func makeCounter(label: String, dimensions: [(String, String)]) -> CounterHandler {
-        return self.make(label: label, dimensions: dimensions, registry: &self.counters, maker: TestCounter.init)
+        return self.make(label: "counters.\(label)", dimensions: dimensions, registry: &self._counters, maker: TestCounter.init)
     }
 
     public func makeRecorder(label: String, dimensions: [(String, String)], aggregate: Bool) -> RecorderHandler {
         let maker = { (label: String, dimensions: [(String, String)]) -> RecorderHandler in
-            TestRecorder(label: label, dimensions: dimensions, aggregate: aggregate)
+            TestRecorder(label: "recorders.\(label)", dimensions: dimensions, aggregate: aggregate)
         }
-        return self.make(label: label, dimensions: dimensions, registry: &self.recorders, maker: maker)
+        return self.make(label: "recorders.\(label)", dimensions: dimensions, registry: &self._recorders, maker: maker)
     }
 
     public func makeTimer(label: String, dimensions: [(String, String)]) -> TimerHandler {
-        return self.make(label: label, dimensions: dimensions, registry: &self.timers, maker: TestTimer.init)
+        return self.make(label: "timers.\(label)", dimensions: dimensions, registry: &self._timers, maker: TestTimer.init)
     }
 
     private func make<Item>(label: String, dimensions: [(String, String)], registry: inout [String: Item], maker: (String, [(String, String)]) -> Item) -> Item {
@@ -49,15 +61,14 @@ internal class TestMetrics: MetricsFactory {
         }
     }
 
-    public func release<M: MetricHandler>(metric: M) {
-        switch metric {
-        case let counter as TestCounter:
-            self.counters.removeValue(forKey: counter.label)
-        case let recorder as TestRecorder:
-            self.recorders.removeValue(forKey: recorder.label)
-        case let timer as TestTimer:
-            self.timers.removeValue(forKey: timer.label)
-        default:
+    public func release(label: String) {
+        if label.starts(with: "counters.") {
+            self._counters.removeValue(forKey: label)
+        } else if label.starts(with: "recorders.") {
+            self._recorders.removeValue(forKey: label)
+        } else if label.starts(with: "timers.") {
+            self._timers.removeValue(forKey: label)
+        } else {
             return // nothing to do, not a metric that we created/stored
         }
     }
@@ -81,7 +92,7 @@ internal class TestCounter: CounterHandler, Equatable {
         self.lock.withLock {
             self.values.append((Date(), Int64(value)))
         }
-        print("adding \(value) to \(self.label)")
+//        print("adding \(value) to \(self.label)")
     }
 
     func reset() {
@@ -120,7 +131,7 @@ internal class TestRecorder: RecorderHandler, Equatable {
             // this may loose precision but good enough as an example
             values.append((Date(), Double(value)))
         }
-        print("recoding \(value) in \(self.label)")
+//        print("recoding \(value) in \(self.label)")
     }
 
     public static func == (lhs: TestRecorder, rhs: TestRecorder) -> Bool {
@@ -146,7 +157,7 @@ internal class TestTimer: TimerHandler, Equatable {
         self.lock.withLock {
             values.append((Date(), duration))
         }
-        print("recoding \(duration) \(self.label)")
+//        print("recoding \(duration) \(self.label)")
     }
 
     public static func == (lhs: TestTimer, rhs: TestTimer) -> Bool {

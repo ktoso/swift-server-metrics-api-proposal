@@ -68,35 +68,34 @@ class ExampleMetricsLibrary: MetricsFactory {
     }
 
 
-    func release<M: MetricHandler>(metric: M) {
+    func release(label: String) {
         // we only release metrics that we ourselves created and keep in our caches:
-        switch metric {
-        case let counter as ExampleCounter:
+        if label.starts(with: "counters.") {
             lock.withLock {
-                if let idx = self.counters.firstIndex(where: { m in m.label == counter.label }) {
+                if let idx = self.counters.firstIndex(where: { m in m.label == label }) {
                     self.counters.remove(at: idx)
                 }
             }
-        case let gauge as ExampleGauge:
+        } else if label.starts(with: "gauges.") {
             lock.withLock {
-                if let idx = self.gauges.firstIndex(where: { m in m.label == gauge.label }) {
+                if let idx = self.gauges.firstIndex(where: { m in m.label == label }) {
                     self.gauges.remove(at: idx)
                 }
             }
-        case let recorder as ExampleRecorder:
+        } else if label.starts(with: "recorders.") {
             lock.withLock {
-                if let idx = self.recorders.firstIndex(where: { m in m.label == recorder.label }) {
+                if let idx = self.recorders.firstIndex(where: { m in m.label == label }) {
                     self.recorders.remove(at: idx)
                 }
             }
-        case let timer as ExampleTimer:
+        } else if label.starts(with: "timers.") {
             lock.withLock {
-                if let idx = self.timers.firstIndex(where: { m in m.label == timer.label }) {
+                if let idx = self.timers.firstIndex(where: { m in m.label == label }) {
                     self.timers.remove(at: idx)
                 }
             }
-        default:
-            // we can't release not "out" metrics; this could be considered a bug and fatal error here perhaps
+        } else {
+            // we can't release not "our" metrics; this could be considered a bug and fatal error here perhaps
             return
         }
     }

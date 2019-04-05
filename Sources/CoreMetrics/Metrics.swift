@@ -175,7 +175,7 @@ public protocol MetricsFactory {
     func makeRecorder(label: String, dimensions: [(String, String)], aggregate: Bool) -> RecorderHandler
     func makeTimer(label: String, dimensions: [(String, String)]) -> TimerHandler
 
-    /// Signals the `MetricsFactory` that the passed in `MetricHandler` will no longer be updated.
+    /// Signals the `MetricsFactory` that the metrics handler, identified by the given label will no longer be updated.
     /// Implementing this functionality is _optional_, and depends on the semantics of the concrete `MetricsFactory`.
     ///
     /// In response to this call, the factory _may_ release resources associated with this metric,
@@ -199,11 +199,11 @@ public protocol MetricsFactory {
     ///
     /// This function MAY be invoked concurrently, and implementations should take care to use appropriate
     /// synchronization mechanisms where necessary.
-    func release<M: MetricHandler>(metric: M)
+    func release(label: String)
 }
 
 extension MetricsFactory {
-    public func release<M: MetricHandler>(metric: M) {
+    public func release(label: String) {
         // no-op by default.
         // Libraries which do maintain metric lifecycle should implement this method.
     }
@@ -236,9 +236,9 @@ public enum MetricsSystem {
     ///
     /// - Parameter metric: metric object to be released by underlying metrics factory
     /// - SeeAlso: `MetricsFactory.release` for more details.
-    public static func release<M: MetricHandler>(metric: M) {
+    public static func release(label: String) {
         self.lock.withReaderLockVoid {
-            self._factory.release(metric: metric)
+            self._factory.release(label: label)
         }
     }
 
@@ -267,9 +267,9 @@ public final class MultiplexMetricsHandler: MetricsFactory {
     }
 
 
-    public func release<M: MetricHandler>(metric: M) {
+    public func release(label: String) {
         self.factories.forEach { factory in
-            factory.release(metric: metric)
+            factory.release(label: label)
         }
     }
 
